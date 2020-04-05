@@ -1,5 +1,7 @@
 import random
 import math
+import numpy as np
+
 
 def distance(a, b):
     return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
@@ -22,7 +24,7 @@ class Biot:
         self.done = False #Biot has made it's moves for this day
 
     def __str__(self):
-        return("Biot named %s, genes (%d %lf %d), fd/mtb = (%d/%d)" % (self.name, self.speed, self.amb, self.sense, self.eaten, self.mtb))
+        return("Biot named %s, genes (%.2lf %.2lf %.2lf), fd/mtb = (%.2lf/%.2lf)" % (self.name, self.speed, self.amb, self.sense, self.eaten, self.mtb))
 
     def place(self, coords):
         """Places a Biot somewhere"""
@@ -124,22 +126,22 @@ class Biot:
 
     def does_survive(self):
         """Biot gets to survive if it finds the food it costs to live"""
-        return self.eaten > self.mtb
+        return self.eaten >= self.mtb
 
     def does_reproduce(self):
         """Biot gets to reproduce if it's strong enough to find double
         the needed survival food."""
-        return self.eaten > 2*self.mtb
+        return self.eaten >= 2*self.mtb
 
     def mutate(self):
-        """All genes have a chance of changing by 10% """
+        """All genes have a chance of changing by a small amount"""
         "TODO"
-        newSpeed = self.speed + (random.randint(-1, 1)) #+- 1
-        newAmb = self.amb * (random.random()/5 -.1) #+-20%
-        newSense = max(self.sense + (random.randint(-1, 1)), 1) #+- 1 but not less than zero
-        offspring = Biot(self.name, self.speed, self.amb, self.sense)
-        print("Biot %s mutates into: \n    %s" % self.name, offspring)
-        return [offspring, offspring]
+        newSpeed = min(1, self.speed + (random.randint(-1, 1))) #+- 1
+        newAmb = min(1, max(0, self.amb * (random.random()/5 -.1))) #+-20%, inside 0-1.
+        newSense = min(self.sense + (random.randint(-1, 1)), 0) #+- 1 but not less than zero
+        offspring = Biot(self.name+"m", newSpeed, newAmb, newSense)
+        print("Biot %s mutates into: \n    %s" % (self.name, str(offspring)))
+        return offspring
 
     def refresh(self):
         """Reset searching variables for a new day of foraging"""
@@ -208,7 +210,8 @@ class Field:
         print("SURVIVORS: ", len(survivors))
         parents = [d for d in survivors if d.does_reproduce()]
         mutants = [g.mutate() for g in parents]
-        self.population = survivors + mutants
+        children = list(np.repeat(mutants, 2))
+        self.population = survivors + children
 
     def simulate(self, days):
         """Run the simulation forward for some number of days, or generations"""

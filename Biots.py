@@ -6,22 +6,23 @@ def distance(a, b):
 
 class Biot:
 
-    def __init__(self, speed, amb, sense):
+    def __init__(self, name, speed, amb, sense):
         """Spawn in with a handful of genes"""
+        self.name = name #for debugging
         self.speed = speed
         self.amb = amb #Ambition is the probability that biot will go for reproduction
         self.sense = sense
         """Non-genetic attributes"""
         self.coords = (0, 0)
         self.eaten = 0
-        self.mtb = self.speed * self.amb
+        self.mtb = self.speed * self.sense
         """Behavioral Flags"""
         self.searching = False #Looking for Food #2
         self.retreating = False #Done eating, retreating to safe area
         self.done = False #Biot has made it's moves for this day
 
     def __str__(self):
-        return("Biot with genes %d %d %d" % (self.speed, self.amb, self.sense))
+        return("Biot named %s, genes (%d %lf %d), fd/mtb = (%d/%d)" % (self.name, self.speed, self.amb, self.sense, self.eaten, self.mtb))
 
     def place(self, coords):
         """Places a Biot somewhere"""
@@ -46,7 +47,6 @@ class Biot:
         self.place((x, y))
         return None
 
-
     def step_retreating(self):
         """Steps in the best direction towards the edge of the map.
         Label the edges: Top=1, Right=2, Low=3, Left=4"""
@@ -67,6 +67,7 @@ class Biot:
         if distance(self.coords, target) < 5*self.speed:
             self.place(target)
             self.done = True
+            print("Biot %s has made it to safety" % (self.name))
             return
         else:
             if target == (x, 100):
@@ -74,7 +75,7 @@ class Biot:
             if target == (0, y):
                 self.place((x-(5*self.speed), y))
             if target == (x, 0):
-                self.plce((x, y-(5*self.speed)))
+                self.place((x, y-(5*self.speed)))
             if target == (100, y):
                 self.place((x+(5*self.speed), y))
             return
@@ -108,8 +109,10 @@ class Biot:
             if not e == None: #IF we eat
                 if (random.random() < self.amb):
                     self.searching = True
+                    print("Biot %s is ambitious, searches for more food" % (self.name))
                 else:
                     self.retreating = True
+                    print("Biot %s is not ambitious, retreats to edge" % (self.name))
         elif self.searching:
             e = self.step_searching(foods)
             if not e == None:
@@ -118,8 +121,6 @@ class Biot:
             self.step_retreating()
 
         return
-
-
 
     def does_survive(self):
         """Biot gets to survive if it finds the food it costs to live"""
@@ -131,11 +132,22 @@ class Biot:
         return self.eaten > 2*self.mtb
 
     def mutate(self):
-        """All genes have a chance of changing by a small amount"""
+        """All genes have a chance of changing by 10% """
         "TODO"
-        return self
+        newSpeed = self.speed + (random.randint(-1, 1)) #+- 1
+        newAmb = self.amb * (random.random()/5 -.1) #+-20%
+        newSense = max(self.sense + (random.randint(-1, 1)), 1) #+- 1 but not less than zero
+        offspring = Biot(self.name, self.speed, self.amb, self.sense)
+        print("Biot %s mutates into: \n    %s" % self.name, offspring)
+        return [offspring, offspring]
 
-
+    def refresh(self):
+        """Reset searching variables for a new day of foraging"""
+        self.eaten = 0
+        self.searching = False
+        self.done = False
+        self.retreating = False
+        return
 
 class Field:
     """The environment that the Neets live and compete in. Sized 100x100."""
@@ -143,13 +155,13 @@ class Field:
     def __init__(self, population):
         self.population = population
         self.current_time = 0
-        self.foods = [(random.randint(1, 99), random.randint(1,99)) for g in range(0, 100)]
+        self.foods = []
 
     def food_within_view(self, neet):
         """returns the X and Y of a food, or None if none are within sense range"""
         return
 
-    def first_place_population():
+    def first_place_population(self):
         """randomly place all the neets on the edge of the map"""
         for r in range(0, len(population)):
             edge = random.randint(0, 3)
@@ -164,10 +176,14 @@ class Field:
 
         return
 
-
     def create_food(self):
         """Randomly place food pellets on the map"""
-        self.foods = [(random.randint(1, 99), random.randint(1,99)) for g in range(0, 100)]
+        self.foods = [(random.randint(1, 99), random.randint(1,99)) for g in range(0, 200)]
+        return
+
+    def refresh_all(self):
+        for r in range(0, len(self.population)):
+            self.population[r].refresh()
         return
 
     def step(self):
@@ -185,29 +201,38 @@ class Field:
         """Run through a day, making 30 steps, then killing the weak and
         mutating the survivors."""
         self.create_food()
-        for r in range(0, 30):
+        for r in range(0, 5):
             self.step()
 
         survivors = [g for g in self.population if g.does_survive()]
         print("SURVIVORS: ", len(survivors))
-        mutants = [g.mutate() for g in survivors]
-        self.population = mutants
+        parents = [d for d in survivors if d.does_reproduce()]
+        mutants = [g.mutate() for g in parents]
+        self.population = survivors + mutants
 
     def simulate(self, days):
         """Run the simulation forward for some number of days, or generations"""
         for r in range(0, days):
+            self.create_food()
+            self.refresh_all()
             print("New day, Biot count %d" % len(self.population))
             self.day()
+            print("\nEND OF DAY %d, BIOT POPULATION:" % r)
+            self.population_report()
 
         return
 
     def population_report(self):
-        print(self.population)
+        if len(self.population) > 0:
+            for r in self.population:
+                print(r)
+        else:
+            print("Biots have gone extinct!")
+        return
 
 
-species = [Biot(1, .5, 1)] * 40 #start with a simple group
+species = [Biot(str(t), 1, .5, 1) for t in range(0, 10)] #start with a simple group
 
 environment = Field(species)
 
-environment.simulate(30)
-print(environment.population_report())
+environment.simulate(3)

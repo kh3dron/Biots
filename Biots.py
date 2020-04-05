@@ -13,11 +13,11 @@ class Biot:
         self.name = name #for debugging
         self.speed = speed
         self.amb = amb #Ambition is the probability that biot will go for reproduction
-        self.sense = sense
+        self.sense = sense #how many steps away can food be seen from
         """Non-genetic attributes"""
         self.coords = (0, 0)
         self.eaten = 0
-        self.mtb = self.speed * self.sense
+        self.mtb = (self.speed * self.sense) + 1
         """Behavioral Flags"""
         self.searching = False #Looking for Food #2
         self.retreating = False #Done eating, retreating to safe area
@@ -31,13 +31,13 @@ class Biot:
         self.coords = coords
 
     def step_searching(self, foods):
-        ate = False
         """Make a move either towards food or nowhere"""
         for r in foods:
             if (distance(self.coords, r) < self.sense*5) and (self.eaten < self.mtb * 2):
                 ate = True
                 self.place(r)
                 self.eaten += 1
+                #print("ATE FOOD AT ", r)
                 return r
 
         #No food discovered, random step - but INSIDE the play area
@@ -69,7 +69,7 @@ class Biot:
         if distance(self.coords, target) < 5*self.speed:
             self.place(target)
             self.done = True
-            print("Biot %s has made it to safety" % (self.name))
+            #print("Biot %s has made it to safety" % (self.name))
             return
         else:
             if target == (x, 100):
@@ -104,25 +104,31 @@ class Biot:
         """
 
         if (self.done):
-            return
+            return None
 
         if self.eaten < self.mtb: #IF we won't survive yet
             e = self.step_searching(foods)
             if not e == None: #IF we eat
                 if (random.random() < self.amb):
                     self.searching = True
-                    print("Biot %s is ambitious, searches for more food" % (self.name))
+                    return e
+                    #print("Biot %s is ambitious, searches for more food" % (self.name))
                 else:
                     self.retreating = True
-                    print("Biot %s is not ambitious, retreats to edge" % (self.name))
+                    return e
+                    #print("Biot %s is not ambitious, retreats to edge" % (self.name))
+            else:
+                return None
         elif self.searching:
             e = self.step_searching(foods)
             if not e == None:
                 self.retreating = True
+                return e
+            else:
+                return None
         elif self.retreating:
             self.step_retreating()
-
-        return
+            return None
 
     def does_survive(self):
         """Biot gets to survive if it finds the food it costs to live"""
@@ -136,11 +142,11 @@ class Biot:
     def mutate(self):
         """All genes have a chance of changing by a small amount"""
         "TODO"
-        newSpeed = min(1, self.speed + (random.randint(-1, 1))) #+- 1
-        newAmb = min(1, max(0, self.amb * (random.random()/5 -.1))) #+-20%, inside 0-1.
-        newSense = min(self.sense + (random.randint(-1, 1)), 0) #+- 1 but not less than zero
-        offspring = Biot(self.name+"m", newSpeed, newAmb, newSense)
-        print("Biot %s mutates into: \n    %s" % (self.name, str(offspring)))
+        newSpeed = max(1, self.speed + (random.randint(-1, 1))) #+- 1
+        #newAmb = min(1, max(0, self.amb * (1 + (random.randint(-1,1) * .05)))) #+-(0-20)%, inside 0-1.
+        newSense = max(self.sense + (random.randint(-1, 1)), 0) #+- 1 but not less than zero
+        offspring = Biot(self.name+"m", newSpeed, .5, newSense)
+        #print("Biot %s mutates into: \n    %s" % (str(self), str(offspring)))
         return offspring
 
     def refresh(self):
@@ -180,7 +186,7 @@ class Field:
 
     def create_food(self):
         """Randomly place food pellets on the map"""
-        self.foods = [(random.randint(1, 99), random.randint(1,99)) for g in range(0, 200)]
+        self.foods = [(random.randint(1, 99), random.randint(1,99)) for g in range(0, 100)]
         return
 
     def refresh_all(self):
@@ -194,34 +200,35 @@ class Field:
 
         for r in range(0, len(self.population)):
             eaten = self.population[r].roam(self.foods)
-            if not eaten == None:
+            if not (eaten == None):
                 self.foods.remove(eaten)
+                #print("Food eaten, %d remaining" % (len(self.foods)))
             """This should remove any eaten food"""
         return
 
     def day(self):
-        """Run through a day, making 30 steps, then killing the weak and
+        """Run through a day, making some steps, then killing the weak and
         mutating the survivors."""
         self.create_food()
-        for r in range(0, 5):
+        for r in range(0, 10):
             self.step()
 
-        survivors = [g for g in self.population if g.does_survive()]
+        survivors = [g for g in self.population if (g.does_survive() and not g.does_reproduce())]
         print("SURVIVORS: ", len(survivors))
-        parents = [d for d in survivors if d.does_reproduce()]
+        parents = [d for d in self.population if d.does_reproduce()]
         mutants = [g.mutate() for g in parents]
+        print("OFFSPRINGS: ", len(mutants))
         children = list(np.repeat(mutants, 2))
         self.population = survivors + children
 
     def simulate(self, days):
         """Run the simulation forward for some number of days, or generations"""
-        for r in range(0, days):
-            self.create_food()
+        for r in range(1, days):
             self.refresh_all()
             print("New day, Biot count %d" % len(self.population))
             self.day()
-            print("\nEND OF DAY %d, BIOT POPULATION:" % r)
-            self.population_report()
+            print("\nEND OF DAY %d, BIOT POPULATION: %d" % (r, len(self.population)))
+            #self.population_report()
 
         return
 
@@ -234,8 +241,8 @@ class Field:
         return
 
 
-species = [Biot(str(t), 1, .5, 1) for t in range(0, 10)] #start with a simple group
+species = [Biot(str(t), 1, .5, 3) for t in range(0, 10)] #start with a simple group
 
 environment = Field(species)
 
-environment.simulate(3)
+environment.simulate(20)

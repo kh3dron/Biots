@@ -2,6 +2,9 @@ import random
 import math
 import numpy as np
 
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
 
 def distance(a, b):
     return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
@@ -175,6 +178,9 @@ class Field:
         self.current_time = 0
         self.foods = []
 
+        """Historical values: for plotting"""
+        self.t_pop = []
+
     def food_within_view(self, neet):
         """returns the X and Y of a food, or None if none are within sense range"""
         return
@@ -221,9 +227,10 @@ class Field:
         mutating the survivors."""
         self.refresh_all()
         self.create_food()
-
+        self.t_pop.append(len(self.population))
         for r in range(0, 10):
             self.step()
+            self.t_pop.append(len(self.population))
 
         survivors = [g for g in self.population if g.does_survive()]
         parents = [d for d in self.population if d.does_reproduce()]
@@ -238,7 +245,7 @@ class Field:
 
         for r in range(1, days):
             self.day()
-            print(("Day %d, biots alive: %d, Summary::: %s") % (r, len(self.population), self.population_report()))
+            print(("Day %3d | Population %3d | %s") % (r, len(self.population), self.population_report()))
 
         return
 
@@ -258,13 +265,16 @@ class Field:
             av_mtb /= len(self.population)
             av_sense /= len(self.population)
 
-            return ("MSpeed = %lf, MAmb = %lf, MMtb = %lf, MSense = %lf" % (av_speed, av_amb, av_mtb, av_sense))
+            return ("MSpeed %5.02lf | MAmb %5.02lf | MMtb %5.02lf | MSense %5.02lf" % (av_speed, av_amb, av_mtb, av_sense))
         else:
             return("Biots Extinct")
 
 
 species = [Biot(str(t), 1, .5, 3) for t in range(0, 10)] #start with a simple group
-
 environment = Field(species)
+environment.simulate(60)
 
-environment.simulate(40)
+plt.xlabel("Days")
+plt.ylabel("Population of Biots")
+plt.plot(environment.t_pop)
+plt.show()

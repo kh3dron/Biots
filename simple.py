@@ -218,41 +218,31 @@ class Field:
     def day(self):
         """Run through a day, making some steps, then killing the weak and
         mutating the survivors."""
+        self.refresh_all()
         self.create_food()
         for r in range(0, 10):
             self.step()
 
-
-        deceased  = [g for g in self.population if not g.does_survive()]
         survivors = [g for g in self.population if g.does_survive()]
-
-        print("Biots Died:  ", len(deceased))
-        print("Biots Survived:  ", len(survivors))
         parents = [d for d in self.population if d.does_reproduce()]
-        print("Biots Parented:  ", len(parents))
+
         mutants = [g.mutate() for g in parents]
-        children = list(np.repeat(mutants, 2))
+        children = list(np.repeat(mutants, 2)) #double the offspring
         self.population = survivors + children
 
     def simulate(self, days):
         self.first_place_population()
         """Run the simulation forward for some number of days, or generations"""
+
         for r in range(1, days):
-            self.refresh_all()
-            print("\nSTART OF DAY %d, BIOT POPULATION: %d" % (r, len(self.population)))
             self.day()
-            print("END OF DAY %d, BIOT POPULATION: %d" % (r, len(self.population)))
-            print("Genetic Makup of current population:")
-            #self.population_report()
+            print(("Day %d, biots alive: %d") % (r, len(self.population)))
 
         return
 
     def population_report(self):
-        if len(self.population) > 0:
-            for r in self.population:
-                print(r)
-        else:
-            print("Biots have gone extinct!")
+        for r in self.population:
+            print(r)
         return
 
 
@@ -260,4 +250,4 @@ species = [Biot(str(t), 1, .5, 3) for t in range(0, 10)] #start with a simple gr
 
 environment = Field(species)
 
-environment.simulate(10)
+environment.simulate(40)

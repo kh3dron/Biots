@@ -22,13 +22,13 @@ class Biot:
     def __init__(self, name, speed, amb, sense):
         """Spawn in with a handful of genes"""
         self.name = name #for debugging
-        self.speed = speed
+        self.speed = speed*5 #Distance covered in 1 step
         self.amb = amb #Ambition is the probability that biot will go for reproduction
         self.sense = sense #how many steps away can food be seen from
         """Non-genetic attributes"""
         self.coords = (0, 0)
         self.eaten = 0
-        self.mtb = (self.speed * self.sense) + 1
+        self.mtb = (self.speed/5 * self.sense) + 1
         """Behavioral Flags"""
         self.searching = False #Looking for Food #2
         self.retreating = False #Done eating, retreating to safe area
@@ -56,17 +56,17 @@ class Biot:
                 ate = True
                 self.place(r)
                 self.eaten += 1
-                #print("ATE FOOD AT ", r)
                 return r
 
         #No food discovered, random step - but INSIDE the play area
         rads = random.random() * 2 * math.pi
-        x, y = (math.cos(rads)*self.speed*5, math.sin(rads)*self.speed*5)
-        while not (0 <= x <= 100 and 0 <= y <= 100):
+        x, y = self.coords
+
+        dx, dy = (math.cos(rads)*self.speed, math.sin(rads)*self.speed)
+        while not (0 <= x+dx <= 100 and 0 <= y+dy <= 100):
             rads = random.random() * 2 * math.pi
-            x, y = (math.cos(rads)*self.speed*5, math.sin(rads)*self.speed*5)
-        self.move((x, y))
-        print("Biot stepped to " + str(self.coords))
+            dx, dy = (math.cos(rads)*self.speed, math.sin(rads)*self.speed)
+        self.move((dx, dy))
         return None
 
     def step_retreating(self):
@@ -88,9 +88,7 @@ class Biot:
         #If we're within one step of the edge
         if distance(self.coords, target) < 5*self.speed:
             self.move(target)
-            print("Biots placed at", target)
             self.done = True
-            #print("Biot %s has made it to safety" % (self.name))
             return
         else:
             if target == (x, 100):
@@ -153,7 +151,8 @@ class Biot:
 
     def does_survive(self):
         """Biot gets to survive if it finds the food it costs to live"""
-        return (self.on_edge() and not self.does_starve())
+        #return (self.on_edge() and not self.does_starve())
+        return not self.does_starve()
 
     def on_edge(self):
         x, y = self.coords
@@ -255,7 +254,7 @@ class Field:
             if z.does_survive():
                 survivors.append(z)
             else:
-                print("Biot died at coords", str(z.coords))
+                print("Biot died, food %lf/%lf" % (z.eaten, z.mtb))
 
         offspring = []
 

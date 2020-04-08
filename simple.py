@@ -44,6 +44,11 @@ class Biot:
         """Places a Biot somewhere"""
         self.coords = coords
 
+    def move(self, move):
+        """ADD distance, not PLACE!"""
+        self.place((self.coords[0] + move[0], self.coords[1]+move[1]))
+        return
+
     def step_searching(self, foods):
         """Make a move either towards food or nowhere"""
         for r in foods:
@@ -60,7 +65,8 @@ class Biot:
         while not (0 <= x <= 100 and 0 <= y <= 100):
             rads = random.random() * 2 * math.pi
             x, y = (math.cos(rads)*self.speed*5, math.sin(rads)*self.speed*5)
-        self.place((x, y))
+        self.move((x, y))
+        print("Biot stepped to " + str(self.coords))
         return None
 
     def step_retreating(self):
@@ -81,19 +87,20 @@ class Biot:
 
         #If we're within one step of the edge
         if distance(self.coords, target) < 5*self.speed:
-            self.place(target)
+            self.move(target)
+            print("Biots placed at", target)
             self.done = True
             #print("Biot %s has made it to safety" % (self.name))
             return
         else:
             if target == (x, 100):
-                self.place((x, y+(5*self.speed)))
+                self.move(0, 5*self.speed)
             if target == (0, y):
-                self.place((x-(5*self.speed), y))
+                self.move(((-5*self.speed), 0))
             if target == (x, 0):
-                self.place((x, y-(5*self.speed)))
+                self.move((0, (-5*self.speed)))
             if target == (100, y):
-                self.place((x+(5*self.speed), y))
+                self.move(((5*self.speed), 0))
             return
 
     def roam(self, foods):
@@ -190,6 +197,9 @@ class Field:
 
         """Historical values: for plotting"""
         self.t_pop = []
+        self.t_speed = []
+        self.t_sense = []
+        self.t_mtb = []
 
     def first_place_population(self):
         """randomly place all the neets on the edge of the map"""
@@ -234,16 +244,22 @@ class Field:
         self.refresh_all()
         self.create_food()
         self.t_pop.append(len(self.population))
-        for r in range(0, 10):
+        for r in range(0, 20):
             self.step()
-            self.t_pop.append(len(self.population))
 
-        survivors = [g for g in self.population if g.does_survive()]
-        parents = [d for d in self.population if d.does_reproduce()]
+        #These 6 lines need reworking, something's off
 
-        #mutants = [g.mutate() for g in parents]
+        survivors = []
+
+        for z in self.population:
+            if z.does_survive():
+                survivors.append(z)
+            else:
+                print("Biot died at coords", str(z.coords))
+
         offspring = []
-        for r in range(0, len(self.population), 2):
+
+        for r in range(0, len(survivors), 2):
             offspring.append(mate(self.population[r], self.population[r+1]))
 
         children = list(np.repeat(offspring, 2)) #double the offspring
@@ -275,17 +291,27 @@ class Field:
             av_mtb /= len(self.population)
             av_sense /= len(self.population)
 
+            self.t_mtb.append(av_mtb)
+            self.t_speed.append(av_speed)
+            self.t_sense.append(av_sense)
+
             return ("MSpeed %5.02lf | MAmb %5.02lf | MMtb %5.02lf | MSense %5.02lf" % (av_speed, av_amb, av_mtb, av_sense))
         else:
             return("Biots Extinct")
 
 
-species = [Biot(str(t), 1, .8, 3) for t in range(0, 10)] #start with a simple group
+species = [Biot(str(t), 1, .8, 3) for t in range(0, 20)] #start with a simple group
 environment = Field(species)
 environment.simulate(100)
 
+f, axarr = plt.subplots(2, 2)
+axarr[0, 0].plot(environment.t_speed)
+axarr[0, 0].set_title('Speed')
+axarr[0, 1].plot(environment.t_sense)
+axarr[0, 1].set_title('Sense')
+axarr[1, 0].plot(environment.t_mtb)
+axarr[1, 0].set_title('Metabolism')
+axarr[1, 1].plot(environment.t_pop)
+axarr[1, 1].set_title('Population')
 
-plt.xlabel("Days")
-plt.ylabel("Population of Biots")
-plt.plot(environment.t_pop)
 plt.show()

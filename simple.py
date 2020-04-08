@@ -9,6 +9,14 @@ import matplotlib.patches as mpatches
 def distance(a, b):
     return math.sqrt((a[0] - b[0])**2 + (a[1] - b[1])**2)
 
+def av(a, b):
+    return((a+b)/2)
+
+def mate(a, b):
+    """Reproduce two biots by averaging their traits!"""
+    name = (a.name) #sorry parent 2
+    return(Biot(name, av(a.speed, b.speed), av(a.amb, b.amb), av(a.sense, b.sense)).mutateBiot())
+
 class Biot:
 
     def __init__(self, name, speed, amb, sense):
@@ -152,14 +160,16 @@ class Biot:
         the needed survival food."""
         return self.eaten >= 2*self.mtb
 
-    def mutate(self):
+    def mutateTrait(self, trait):
+        return max(0, np.random.normal(trait, trait/15, 1)) #normal dist chance of moving by SD 1/10th from current spot
+
+    def mutateBiot(self):
         """All genes have a chance of changing by a small amount"""
         "TODO"
-        newSpeed = max(1, self.speed + (random.randint(-1, 1))) #+- 1
-        newAmb = min(1, max(0, self.amb * (1 + (random.randint(-1,1) * .05)))) #+-(0-20)%, inside 0-1.
-        newSense = max(self.sense + (random.randint(-1, 1)), 0) #+- 1 but not less than zero
-        offspring = Biot(self.name+"m", newSpeed, .5, newSense)
-        #print("Biot %s mutates into: \n    %s" % (str(self), str(offspring)))
+        newSpeed =  self.mutateTrait(self.speed)
+        newAmb =    self.mutateTrait(self.amb)
+        newSense =  self.mutateTrait(self.sense)
+        offspring = Biot(self.name, newSpeed, newAmb, newSense)
         return offspring
 
     def refresh(self):
@@ -180,10 +190,6 @@ class Field:
 
         """Historical values: for plotting"""
         self.t_pop = []
-
-    def food_within_view(self, neet):
-        """returns the X and Y of a food, or None if none are within sense range"""
-        return
 
     def first_place_population(self):
         """randomly place all the neets on the edge of the map"""
@@ -235,8 +241,12 @@ class Field:
         survivors = [g for g in self.population if g.does_survive()]
         parents = [d for d in self.population if d.does_reproduce()]
 
-        mutants = [g.mutate() for g in parents]
-        children = list(np.repeat(mutants, 2)) #double the offspring
+        #mutants = [g.mutate() for g in parents]
+        offspring = []
+        for r in range(0, len(self.population), 2):
+            offspring.append(mate(self.population[r], self.population[r+1]))
+
+        children = list(np.repeat(offspring, 2)) #double the offspring
         self.population = survivors + children
 
     def simulate(self, days):
@@ -270,9 +280,10 @@ class Field:
             return("Biots Extinct")
 
 
-species = [Biot(str(t), 1, .5, 3) for t in range(0, 10)] #start with a simple group
+species = [Biot(str(t), 1, .8, 3) for t in range(0, 10)] #start with a simple group
 environment = Field(species)
-environment.simulate(60)
+environment.simulate(100)
+
 
 plt.xlabel("Days")
 plt.ylabel("Population of Biots")

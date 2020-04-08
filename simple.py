@@ -153,7 +153,7 @@ class Biot:
         """All genes have a chance of changing by a small amount"""
         "TODO"
         newSpeed = max(1, self.speed + (random.randint(-1, 1))) #+- 1
-        #newAmb = min(1, max(0, self.amb * (1 + (random.randint(-1,1) * .05)))) #+-(0-20)%, inside 0-1.
+        newAmb = min(1, max(0, self.amb * (1 + (random.randint(-1,1) * .05)))) #+-(0-20)%, inside 0-1.
         newSense = max(self.sense + (random.randint(-1, 1)), 0) #+- 1 but not less than zero
         offspring = Biot(self.name+"m", newSpeed, .5, newSense)
         #print("Biot %s mutates into: \n    %s" % (str(self), str(offspring)))
@@ -199,6 +199,7 @@ class Field:
         return
 
     def refresh_all(self):
+        "Re-place and re-starve all beings"
         for r in range(0, len(self.population)):
             self.population[r].refresh()
         return
@@ -220,6 +221,7 @@ class Field:
         mutating the survivors."""
         self.refresh_all()
         self.create_food()
+
         for r in range(0, 10):
             self.step()
 
@@ -236,14 +238,29 @@ class Field:
 
         for r in range(1, days):
             self.day()
-            print(("Day %d, biots alive: %d") % (r, len(self.population)))
+            print(("Day %d, biots alive: %d, Summary::: %s") % (r, len(self.population), self.population_report()))
 
         return
 
     def population_report(self):
-        for r in self.population:
-            print(r)
-        return
+        if (len(self.population) > 0):
+            av_speed = 0
+            av_amb = 0
+            av_mtb = 0
+            av_sense = 0
+            for r in self.population:
+                av_speed += r.speed
+                av_amb += r.amb
+                av_mtb += r.mtb
+                av_sense += r.sense
+            av_speed /= len(self.population)
+            av_amb /= len(self.population)
+            av_mtb /= len(self.population)
+            av_sense /= len(self.population)
+
+            return ("MSpeed = %lf, MAmb = %lf, MMtb = %lf, MSense = %lf" % (av_speed, av_amb, av_mtb, av_sense))
+        else:
+            return("Biots Extinct")
 
 
 species = [Biot(str(t), 1, .5, 3) for t in range(0, 10)] #start with a simple group

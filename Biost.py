@@ -15,7 +15,7 @@ def av(a, b):
 def mate(a, b):
     """Reproduce two biots by averaging their traits!"""
     name = (a.name) #sorry parent 2
-    return(Biot(name, av(a.speed, b.speed), av(a.amb, b.amb), av(a.sense, b.sense)).mutateBiot())
+    return(Biot(name, av(a.speed, b.speed), av(a.sense, b.sense)).mutateBiot())
 
 def legal_move(biot, news):
     """Potential step is still inside the environment"""
@@ -25,26 +25,22 @@ def legal_move(biot, news):
 
 class Biot:
 
-    def __init__(self, name, speed, amb, sense):
+    def __init__(self, name, speed, sense):
         """Spawn in with a handful of genes"""
         self.name = name #for debugging
         self.speed = speed #Distance covered in 1 step
-        self.amb = amb #Ambition is the probability that biot will go for reproduction
         self.sense = sense #how many steps away can food be seen from
         """Non-genetic attributes"""
         self.coords = (0, 0)
         self.eaten = 0
-        self.mtb = (self.speed/5 * self.sense) + 1
+        self.mtb = (self.speed * self.sense) + 1
         """Behavioral Flags"""
         self.searching = False #Looking for Food #2
         self.retreating = False #Done eating, retreating to safe area
         self.done = False #Biot has made it's moves for this day
 
     def __str__(self):
-        return("Biot named %s, genes (%.2lf %.2lf %.2lf), fd/mtb = (%.2lf/%.2lf)" % (self.name, self.speed, self.amb, self.sense, self.eaten, self.mtb))
-
-    def debug(self):
-        return ("COORDS: " + str(self.coords))
+        return("Biot named %s, genes (%.2lf %.2lf), fd/mtb = (%.2lf/%.2lf)" % (self.name, self.speed, self.sense, self.eaten, self.mtb))
 
     def place(self, coords):
         """Places a Biot somewhere"""
@@ -58,7 +54,7 @@ class Biot:
     def step_searching(self, foods):
         """Make a move either towards food or nowhere"""
         for r in foods:
-            if (distance(self.coords, r) < self.sense*5) and (self.eaten < self.mtb * 2):
+            if (distance(self.coords, r) < self.sense*self.speed) and (self.eaten < self.mtb * 2):
                 ate = True
                 self.place(r)
                 self.eaten += 1
@@ -109,19 +105,11 @@ class Biot:
         -IF no survival food yet:
             survival search
             IF we eat:
-                roll for ambition
-                IF ambitious:
-                    flag: ambitious search
-                ELSE
-                    flag: retreat
+                flag: retreat
             IF we don't:
                 flag: survive
-        -IF survival food met:
-            IF ambitious:
-                search
-                IF food nearby:
-                    Eat
-                    flag: go home
+        -IF survival food met
+            flag: go home
         Return coords of food eaten OR None if none eaten
         """
 
@@ -131,24 +119,11 @@ class Biot:
         if self.eaten < self.mtb: #IF we won't survive yet
             e = self.step_searching(foods)
             if not e == None: #IF we eat
-                if (random.random() < self.amb):
-                    self.searching = True
-                    return e
-                    #print("Biot %s is ambitious, searches for more food" % (self.name))
-                else:
-                    self.retreating = True
-                    return e
-                    #print("Biot %s is not ambitious, retreats to edge" % (self.name))
-            else:
-                return None
-        elif self.searching:
-            e = self.step_searching(foods)
-            if not e == None:
                 self.retreating = True
                 return e
             else:
                 return None
-        elif self.retreating:
+        else:
             self.step_retreating()
             return None
 
@@ -170,15 +145,14 @@ class Biot:
         return self.eaten >= 2*self.mtb
 
     def mutateTrait(self, trait):
-        return np.random.normal(trait, trait/10.0, 1)[0]
+        return max(0, np.random.normal(trait, trait/10.0, 1)[0])
 
     def mutateBiot(self):
         """All genes have a chance of changing by a small amount"""
         "TODO"
         newSpeed =  self.mutateTrait(self.speed)
-        newAmb =    self.mutateTrait(self.amb)
         newSense =  self.mutateTrait(self.sense)
-        offspring = Biot(self.name, newSpeed, newAmb, newSense)
+        offspring = Biot(self.name, newSpeed, newSense)
         return offspring
 
     def refresh(self):
@@ -261,10 +235,11 @@ class Field:
         offspring = []
 
         for r in range(0, len(survivors), 2):
-            offspring.append(mate(self.population[r], self.population[r+1]))
+            child = mate(self.population[r], self.population[r+1])
+            offspring += list(np.repeat(child, 2))
 
-        children = list(np.repeat(offspring, 2)) #double the offspring
-        self.population = survivors + children
+        self.population = survivors + offspring
+        return
 
     def simulate(self, days):
         self.first_place_population()
@@ -279,16 +254,13 @@ class Field:
     def population_report(self):
         if (len(self.population) > 0):
             av_speed = 0
-            av_amb = 0
             av_mtb = 0
             av_sense = 0
             for r in self.population:
                 av_speed += r.speed
-                av_amb += r.amb
                 av_mtb += r.mtb
                 av_sense += r.sense
             av_speed /= len(self.population)
-            av_amb /= len(self.population)
             av_mtb /= len(self.population)
             av_sense /= len(self.population)
 
@@ -296,14 +268,14 @@ class Field:
             self.t_speed.append(av_speed)
             self.t_sense.append(av_sense)
 
-            return ("MSpeed %5.02lf | MAmb %5.02lf | MMtb %5.02lf | MSense %5.02lf" % (av_speed, av_amb, av_mtb, av_sense))
+            return ("MSpeed %5.02lf | MMtb %5.02lf | MSense %5.02lf" % (av_speed, av_mtb, av_sense))
         else:
             return("Biots Extinct")
 
 
-species = [Biot(str(t), 5, .8, 3) for t in range(0, 20)] #start with a simple group
+species = [Biot(str(t), 5, 1) for t in range(0, 20)] #start with a simple group
 environment = Field(species)
-environment.simulate(400)
+environment.simulate(200)
 
 f, axarr = plt.subplots(2, 2)
 axarr[0, 0].plot(environment.t_speed)
